@@ -6,24 +6,34 @@
 
 const int L = 4;
 
-enum binMode {
-    pext = 0,
-    clz = 0
+enum normalizeMode {
+    least = 0,
+    greatest_flip = 1,
 };
 
-const enum binMode binMode = binMode::clz;
+enum binMode {
+    pext = 0,
+    ctz = 1,
+};
 
-constexpr int bin(uint64_t cells) {
-    if(binMode == binMode::clz) {
-        return __builtin_clzll(cells);
+const enum binMode binMode = binMode::ctz;
+const enum normalizeMode normalizeMode = normalizeMode::greatest_flip;
+
+int bin(uint64_t cells) {
+    if(binMode == binMode::ctz) {
+        return __builtin_ctzll(cells);
     } else {
         return _pext_u64(cells, 0x10307);
     }
 }
 
 constexpr int bins() {
-    if(binMode == binMode::clz) {
-        return L - 1;
+    if(binMode == binMode::ctz) {
+        if(normalizeMode == normalizeMode::least) {
+            return L;
+        } else if(normalizeMode == normalizeMode::greatest_flip) {
+            return L - 1;
+        }
     } else {
         return 64;
     }
@@ -128,6 +138,15 @@ struct board {
         return;
     }
 
+    uint64_t flipBits() {
+        uint64_t result = 0;
+        for(int i = 0; i < 64; i++) {
+            result |= ((cells >> i) & 0x1) << (63 - i);
+        }
+
+        return result;
+    }
+
     void flip() {
         uint64_t result = 0;
         uint64_t masks[8] = {0xff00000000000000, 0x00ff000000000000, 0x0000ff0000000000, 0x000000ff00000000, 
@@ -145,16 +164,31 @@ struct board {
     void transform() {
         translate();
 
-        uint64_t least = cells;
-        for (int i=0; i<3; i++) {
-            rotate();
-            translate();
-            if(cells < least) {
-                least = cells;
+
+        if(normalizeMode == normalizeMode::least) {
+            uint64_t bestOrient = cells;
+            for (int i = 0; i < 3; i++) {
+                rotate();
+                translate();
+                if (cells < bestOrient) {
+                    bestOrient = cells;
+                }
             }
+            cells = bestOrient;
+        } else {
+            uint64_t bestOrient = flipBits();
+
+            for (int i = 0; i < 3; i++) {
+                rotate();
+                translate();
+                if (flipBits() > bestOrient) {
+                    bestOrient = flipBits();
+                }
+            }
+
+            cells = bestOrient;
+            cells = flipBits();
         }
-        cells = least;
-        return;
     }
 };
 
@@ -209,8 +243,9 @@ int main() {
         for (int j=0; j<bins(); j++) {
             auto& boards = board::boards[i - 2][j];
             for (uint64_t cells : boards) {
-                if (i == 3) {
+                if (i == 2) {
                     std::cout << "bins: " << j << std::endl;
+                    std::cout << std::bitset<64>(cells) << std::endl;
                     board::fromCells(cells).print();
                     std::cout << std::endl;
                 }
