@@ -4,10 +4,32 @@
 #include <bitset>
 #include <x86intrin.h>
 
-#define L 4
-#define BINS 64
-#define BINMASK 0x10307
+const int L = 4;
 
+enum binMode {
+    pext = 0,
+    clz = 0
+};
+
+const enum binMode binMode = binMode::clz;
+
+constexpr int bin(uint64_t cells) {
+    if(binMode == binMode::clz) {
+        return __builtin_clzll(cells);
+    } else {
+        return _pext_u64(cells, 0x10307);
+    }
+}
+
+constexpr int bins() {
+    if(binMode == binMode::clz) {
+        return L - 1;
+    } else {
+        return 64;
+    }
+}
+
+// format to LxL grid
 constexpr uint64_t comboMask() {
     uint64_t mask = 0;
     for(int i = 0; i < L; i++) {
@@ -18,7 +40,7 @@ constexpr uint64_t comboMask() {
 }
 
 struct board {
-    static std::vector<uint64_t> boards[L*L-2][BINS];
+    static std::vector<uint64_t> boards[L*L-2][bins()];
     uint64_t cells;
 
     board(): cells(0) {};
@@ -36,8 +58,8 @@ struct board {
     }
 
     void compare(int n) {
-        uint64_t bin = _pext_u64(cells, BINMASK);
-        std::vector<uint64_t>& prevBoards = boards[n-2][bin];
+        int binIndex = bin(cells);
+        std::vector<uint64_t>& prevBoards = boards[n-2][binIndex];
         for (uint64_t prevBoard : prevBoards) {
             if (prevBoard == cells) {
                 return;
@@ -136,7 +158,7 @@ struct board {
     }
 };
 
-std::vector<uint64_t> board::boards[L*L-2][BINS] = {};
+std::vector<uint64_t> board::boards[L*L-2][bins()] = {};
 
 uint64_t nextComboPossible(uint64_t combo) {
     // find index of first 0 (from msb) in cells
@@ -184,11 +206,14 @@ int main() {
 
         std::cout <<  "======================" << std::endl;
         int count = 0;
-        for (int j=0; j<BINS; j++) {
+        for (int j=0; j<bins(); j++) {
             auto& boards = board::boards[i - 2][j];
             for (uint64_t cells : boards) {
-                //board::fromCells(cells).print();
-                //std::cout << std::endl;
+                if (i == 3) {
+                    std::cout << "bins: " << j << std::endl;
+                    board::fromCells(cells).print();
+                    std::cout << std::endl;
+                }
                 count++;
             }
         }
