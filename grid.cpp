@@ -163,8 +163,6 @@ struct board {
 
     void transform() {
         translate();
-
-
         if(normalizeMode == normalizeMode::least) {
             uint64_t bestOrient = cells;
             for (int i = 0; i < 3; i++) {
@@ -198,13 +196,13 @@ uint64_t nextComboPossible(uint64_t combo) {
     // find index of first 0 (from msb) in cells
     int leading_ones = __builtin_clzll(~combo);
     // if top of number is ones, reset
-    if(leading_ones != 0) {
+    if (leading_ones != 0) {
         // get mask of leading ones
         uint64_t leading_ones_mask = (int64_t)0x8000000000000000 >> (leading_ones - 1);
         // remove leading ones
         uint64_t cell_advance = combo & ~leading_ones_mask;
 
-        if(cell_advance == 0) {
+        if (cell_advance == 0) {
             return 0;
         }
         // count leading zeros on cell_advance
@@ -227,7 +225,7 @@ int main() {
     counts[1] = 1;
     counts[L*L] = 1;
 
-    for (int i=2; i < L*L; i++) {
+    for (int i=2; i<L*L; i++) {
         // create initial board with i cells set
         uint64_t combo = (1 << i) - 1;
         combo <<= 64 - L*L;
@@ -242,6 +240,7 @@ int main() {
         int count = 0;
         for (int j=0; j<bins(); j++) {
             auto& boards = board::boards[i - 2][j];
+            int binCount = 0;
             for (uint64_t cells : boards) {
                 if (i == 2) {
                     std::cout << "bins: " << j << std::endl;
@@ -251,8 +250,9 @@ int main() {
                 }
                 count++;
             }
+            std::cout << "bin " << j << ": " << binCount << std::endl;
         }
-        std::cout << "n = " << i << ", count = " << count << std::endl << std::endl;
+        std::cout << "n = " << i << ", count = " << count << std::endl;
         counts[i] = count;
     }
 
